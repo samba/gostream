@@ -274,7 +274,7 @@ func TestPromise_Any(t *testing.T) {
 		multi, ok := (e).(*MultiPromiseError)
 
 		if ok && (multi != nil) {
-			for i, o := range (*multi).Outcomes {
+			for i, o := range multi.Outcomes() {
 				t.Logf("(expected) error: %v", o)
 				Assert(t, o.Reason.Error() == fmt.Sprintf("error: %d", i+1),
 					"Error did not match the expected format: %s", o.Reason)

@@ -27,7 +27,6 @@ type PromiseError struct {
 
 type MultiPromiseError struct {
 	Promises    []Promise
-	Outcomes    []*PromiseOutcome
 	Description string
 }
 
@@ -43,7 +42,7 @@ func NewPromiseError(text string) *PromiseError {
 
 func (e *MultiPromiseError) Error() string {
 	message := []string{}
-	for _, e := range e.Outcomes {
+	for _, e := range e.Outcomes() {
 		if e.Reason != nil {
 			message = append(message, e.Reason.Error())
 		}
@@ -51,12 +50,23 @@ func (e *MultiPromiseError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Description, strings.Join(message, "; "))
 }
 
-func NewMultiPromiseError(description string, promises []Promise, outcomes []*PromiseOutcome) *MultiPromiseError {
+func NewMultiPromiseError(description string, promises []Promise) *MultiPromiseError {
 	return &MultiPromiseError{
 		Promises:    promises,
-		Outcomes:    outcomes,
 		Description: description,
 	}
+}
+
+func (m *MultiPromiseError) Outcomes() []*PromiseOutcome {
+	return getPromiseOutcomes(m.Promises)
+}
+
+func getPromiseOutcomes(proms []Promise) []*PromiseOutcome {
+	result := make([]*PromiseOutcome, len(proms))
+	for i, p := range proms {
+		result[i] = p.Outcome()
+	}
+	return result
 }
 
 type Thenable interface {
@@ -131,14 +141,12 @@ func Any(proms ...Promise) Promise {
 	return NewPromise(func(resolve Resolver, reject Rejector) error {
 		failures := 0
 		total := len(proms)
-		outcomes := make([]*PromiseOutcome, total)
 		for index, prom := range proms {
 			func(i int, prom Promise) {
 				prom.Then(resolve, func(e error) Unknown {
 					failures += 1
-					outcomes[i] = prom.Outcome()
 					if failures == total {
-						reject(NewMultiPromiseError("all promises failed", proms, outcomes))
+						reject(NewMultiPromiseError("all promises failed", proms))
 					}
 					return nil
 				})
@@ -160,30 +168,19 @@ func AllSettled(proms ...Promise) Promise {
 	return NewPromise(func(resolve Resolver, reject Rejector) error {
 		total := len(proms)
 		settled := 0
-		results := make([]*PromiseOutcome, total)
 
 		for i, p := range proms {
 			func(index int, prom Promise) {
 				prom.Then(func(u Unknown) Unknown {
 					settled += 1
-					results[index] = &PromiseOutcome{
-						Status: PromiseStatusName[PromiseResolved],
-						Result: u,
-						Reason: nil,
-					}
 					if settled == total {
-						resolve(results)
+						resolve(getPromiseOutcomes(proms))
 					}
 					return nil
 				}, func(e error) Unknown {
 					settled += 1
-					results[index] = &PromiseOutcome{
-						Status: PromiseStatusName[PromiseRejected],
-						Result: nil,
-						Reason: e,
-					}
 					if settled == total {
-						resolve(results)
+						resolve(getPromiseOutcomes(proms))
 					}
 					return nil
 				})
