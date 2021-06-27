@@ -272,7 +272,7 @@ func (p *aPromise) Then(onsuccess Resolver, onfail Rejector) Promise {
 			p.callbacks = append(p.callbacks, handle)
 		default:
 			// Execute the promise with existing values
-			handle(p.status, p.result, p.reject)
+			go handle(p.status, p.result, p.reject)
 		}
 
 		return nil
