@@ -11,6 +11,6 @@ The unifying characteristics of streams and promises, yielding this attempt at a
 This library attempts to follow the semantics of Javascript's [Promises/A+](https://promisesaplus.com) standard.
 
 
-## Streams
+## Streams (coming soon)
 
 This library facilitates iterative "pipelines" (or "flows") of transformation functions, which are executed on an input series (similar to "map()").
